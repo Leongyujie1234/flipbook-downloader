@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import sharp from "sharp";
 
 const ALLOWED_DOMAINS = ["online.anyflip.com", "online.fliphtml5.com"];
 
@@ -37,13 +38,25 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const contentType = resp.headers.get("content-type") || "image/jpeg";
+    const contentType = resp.headers.get("content-type") || "";
     const arrayBuffer = await resp.arrayBuffer();
+
+    // Convert webp to jpg for pdf-lib compatibility
+    if (contentType.includes("webp") || targetUrl.endsWith(".webp")) {
+      const jpgBuffer = await sharp(Buffer.from(arrayBuffer)).jpeg({ quality: 90 }).toBuffer();
+      return new NextResponse(new Uint8Array(jpgBuffer), {
+        status: 200,
+        headers: {
+          "Content-Type": "image/jpeg",
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    }
 
     return new NextResponse(arrayBuffer, {
       status: 200,
       headers: {
-        "Content-Type": contentType,
+        "Content-Type": contentType || "image/jpeg",
         "Cache-Control": "public, max-age=86400",
       },
     });

@@ -38,7 +38,9 @@ export function parseFlipbookUrl(rawUrl: string): ParsedUrl {
 
 export function getConfigUrl(parsed: ParsedUrl): string {
   const domain = parsed.platform === "anyflip" ? "online.anyflip.com" : "online.fliphtml5.com";
-  return `https://${domain}/${parsed.id1}/${parsed.id2}/mobile/javascript/config.js`;
+  // AnyFlip uses mobile/javascript/config.js, FlipHTML5 uses javascript/config.js
+  const configPath = parsed.platform === "anyflip" ? "mobile/javascript/config.js" : "javascript/config.js";
+  return `https://${domain}/${parsed.id1}/${parsed.id2}/${configPath}`;
 }
 
 export function buildPageUrl(parsed: ParsedUrl, pageNum: number, filename?: string): string {
@@ -46,12 +48,16 @@ export function buildPageUrl(parsed: ParsedUrl, pageNum: number, filename?: stri
   const basePath = `https://${domain}/${parsed.id1}/${parsed.id2}`;
 
   if (filename) {
-    const clean = filename.replace(/\\/g, "").replace(/\.\.\//g, "");
+    // Clean escaped slashes and relative path prefixes
+    let clean = filename.replace(/\\\//g, "/").replace(/\\/g, "/").replace(/\.\.\//g, "").replace(/\.\.\\/g, "/");
+    // Remove leading slashes
+    clean = clean.replace(/^\/+/, "");
     if (clean.includes("files/large/") || clean.includes("files/mobile/")) {
       return `${basePath}/${clean}`;
     }
     return `${basePath}/files/large/${clean}`;
   }
 
+  // Fallback: numbered jpg (AnyFlip style)
   return `${basePath}/files/large/${pageNum}.jpg`;
 }
