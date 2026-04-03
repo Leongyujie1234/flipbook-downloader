@@ -16,13 +16,5 @@ To deploy:
 2. Link the repository to a new project on [Vercel](https://vercel.com).
 3. Vercel will automatically detect the `index.html` and serve it as a static site.
 
-### Option 2: Firebase Hosting
-This project is also **Firebase-ready**. 
-
-To deploy:
-1. Install Firebase CLI: `npm install -g firebase-tools`
-2. Initialize: `firebase init hosting` (Choose "." as your public directory)
-3. Deploy: `firebase deploy`
-
 ## Local Use
 Simply open `index.html` in any modern web browser.
