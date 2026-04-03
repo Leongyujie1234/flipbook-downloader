@@ -1,501 +1,436 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="dark" lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FlipBook Downloader</title>
-  <meta name="description" content="Download AnyFlip or FlipHTML5 flipbooks as PDF with custom page ranges">
-  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-      color: #e2e8f0;
-      padding: 2rem 1rem;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 540px;
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-    }
-
-    header { text-align: center; margin-bottom: 0.5rem; }
-    header h1 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, #60a5fa, #a78bfa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    header p { color: #94a3b8; font-size: 0.85rem; margin-top: 0.4rem; }
-
-    .card {
-      background: rgba(30, 41, 59, 0.7);
-      border: 1px solid rgba(148, 163, 184, 0.12);
-      border-radius: 12px;
-      padding: 1.25rem;
-      backdrop-filter: blur(8px);
-    }
-
-    label { font-size: 0.8rem; font-weight: 500; color: #94a3b8; display: block; margin-bottom: 0.4rem; }
-    input[type="url"], input[type="number"] {
-      width: 100%;
-      padding: 0.6rem 0.75rem;
-      border-radius: 8px;
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      background: rgba(15, 23, 42, 0.6);
-      color: #e2e8f0;
-      font-size: 0.85rem;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    input:focus { border-color: #60a5fa; }
-    input::placeholder { color: #475569; }
-    input[type="number"] { width: 80px; text-align: center; }
-
-    .row { display: flex; gap: 0.5rem; align-items: center; }
-    .row-wrap { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-
-    button {
-      padding: 0.55rem 1rem;
-      border-radius: 8px;
-      border: none;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      color: #fff;
-    }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .btn-primary { background: #3b82f6; }
-    .btn-primary:hover:not(:disabled) { background: #2563eb; }
-
-    .btn-success { background: #16a34a; width: 100%; padding: 0.7rem; font-size: 0.85rem; }
-    .btn-success:hover:not(:disabled) { background: #15803d; }
-
-    .btn-outline {
-      background: transparent;
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      color: #94a3b8;
-      padding: 0.35rem 0.6rem;
-      font-size: 0.75rem;
-    }
-    .btn-outline:hover:not(:disabled) { background: rgba(148, 163, 184, 0.1); }
-
-    .btn-link {
-      background: none;
-      color: #94a3b8;
-      font-size: 0.8rem;
-      font-weight: 400;
-      padding: 0.3rem 0;
-      text-align: center;
-      width: 100%;
-    }
-    .btn-link:hover { color: #e2e8f0; }
-
-    .badge {
-      display: inline-block;
-      padding: 0.2rem 0.6rem;
-      border-radius: 999px;
-      font-size: 0.7rem;
-      font-weight: 600;
-    }
-    .badge-blue { background: rgba(59,130,246,0.15); color: #60a5fa; }
-    .badge-orange { background: rgba(251,146,60,0.15); color: #fb923c; }
-
-    .error {
-      padding: 0.75rem;
-      border-radius: 8px;
-      background: rgba(239,68,68,0.1);
-      border: 1px solid rgba(239,68,68,0.2);
-      color: #fca5a5;
-      font-size: 0.8rem;
-    }
-
-    .progress-bar {
-      width: 100%;
-      height: 6px;
-      border-radius: 999px;
-      background: rgba(148, 163, 184, 0.15);
-      overflow: hidden;
-    }
-    .progress-fill {
-      height: 100%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #3b82f6, #a78bfa);
-      transition: width 0.3s;
-    }
-
-    .book-info { display: flex; justify-content: space-between; align-items: start; gap: 0.75rem; }
-    .book-title { font-size: 1rem; font-weight: 600; color: #f1f5f9; word-break: break-word; }
-    .book-pages { font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem; }
-
-    .page-count-label { font-size: 0.75rem; color: #64748b; white-space: nowrap; }
-
-    footer { text-align: center; font-size: 0.7rem; color: #475569; margin-top: 1.5rem; }
-
-    .hidden { display: none !important; }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner {
-      width: 14px; height: 14px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-      display: inline-block;
-      vertical-align: middle;
-    }
-
-    .status-text { font-size: 0.8rem; color: #94a3b8; text-align: center; }
-  </style>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Fluid Archive | FlipBook Downloader</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#D0E4FF",
+                        "on-primary": "#003355",
+                        "primary-container": "#004A77",
+                        "on-primary-container": "#D0E4FF",
+                        "secondary": "#BBC7DB",
+                        "on-secondary": "#253140",
+                        "secondary-container": "#3B4858",
+                        "on-secondary-container": "#D7E3F7",
+                        "tertiary": "#D6BEE4",
+                        "on-tertiary": "#3B2948",
+                        "tertiary-container": "#523F5F",
+                        "on-tertiary-container": "#F2DAFF",
+                        "error": "#FFB4AB",
+                        "on-error": "#690005",
+                        "error-container": "#93000A",
+                        "on-error-container": "#FFDAD6",
+                        "background": "#1A1C1E",
+                        "on-background": "#E2E2E6",
+                        "surface": "#1A1C1E",
+                        "on-surface": "#E2E2E6",
+                        "surface-variant": "#43474E",
+                        "on-surface-variant": "#C3C7CF",
+                        "outline": "#8D9199",
+                        "surface-container-low": "#1D2024",
+                        "surface-container": "#212429",
+                        "surface-container-high": "#2B2F33",
+                        "surface-container-highest": "#363A3F"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "4px",
+                        "sm": "8px",
+                        "md": "12px",
+                        "lg": "16px",
+                        "xl": "24px",
+                        "2xl": "28px",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1A1C1E;
+            min-height: 100vh;
+            color: #E2E2E6;
+        }
+        .material-card {
+            background-color: #212429;
+            border-radius: 16px;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hidden { display: none !important; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            width: 20px; height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+    </style>
 </head>
-<body>
-  <div class="container">
-    <header>
-      <h1>FlipBook Downloader</h1>
-      <p>Download AnyFlip & FlipHTML5 books as PDF</p>
+<body class="antialiased selection:bg-primary-container/50">
+    <!-- Top Navigation -->
+    <header class="fixed top-0 w-full z-50 bg-surface-container border-b border-outline/10 flex items-center h-16 px-6">
+        <div class="max-w-[1200px] mx-auto w-full flex items-center gap-3">
+            <span class="material-symbols-outlined text-primary text-2xl" data-icon="auto_stories">auto_stories</span>
+            <h1 class="text-xl font-medium tracking-tight text-on-surface">Fluid Archive</h1>
+        </div>
     </header>
 
-    <!-- URL Input -->
-    <div class="card" id="url-section">
-      <label for="url-input">Flipbook URL</label>
-      <div class="row">
-        <input type="url" id="url-input" placeholder="https://fliphtml5.com/xxxxx/xxxxx/" style="flex:1">
-        <button class="btn-primary" id="fetch-btn" onclick="fetchBook()">Fetch</button>
-      </div>
-    </div>
+    <main class="pt-24 px-4 max-w-[640px] mx-auto space-y-6">
+        <!-- Hero Section -->
+        <section class="text-center space-y-2 py-4">
+            <h2 class="text-4xl font-normal tracking-tight text-on-surface">FlipBook Downloader</h2>
+            <p class="text-on-surface-variant text-base">Download AnyFlip &amp; FlipHTML5 books as PDF</p>
+        </section>
 
-    <!-- Error -->
-    <div class="error hidden" id="error-box"></div>
-
-    <!-- Book Info -->
-    <div class="card hidden" id="info-section">
-      <div class="book-info">
-        <div>
-          <div class="book-title" id="book-title"></div>
-          <div class="book-pages" id="book-pages"></div>
+        <!-- URL Input Section -->
+        <div class="material-card p-6 space-y-4">
+            <div class="relative group">
+                <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                    <span class="material-symbols-outlined text-on-surface-variant" data-icon="link">link</span>
+                </div>
+                <input id="url-input" class="w-full bg-surface-container-highest border border-outline/20 rounded-lg py-4 pl-12 pr-4 text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all" placeholder="Paste Flipbook URL here..." type="text"/>
+            </div>
+            <button id="fetch-btn" onclick="fetchBook()" class="w-full bg-primary text-on-primary font-semibold py-4 rounded-full shadow-md hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined text-xl" data-icon="download_for_offline">download_for_offline</span>
+                Fetch Archive
+            </button>
         </div>
-        <span class="badge" id="platform-badge"></span>
-      </div>
-    </div>
 
-    <!-- Page Range -->
-    <div class="card hidden" id="range-section">
-      <label>Page Range</label>
-      <div class="row" style="margin-bottom:0.5rem">
-        <span class="page-count-label">From</span>
-        <input type="number" id="from-page" min="1" value="1">
-        <span class="page-count-label">To</span>
-        <input type="number" id="to-page" min="1" value="1">
-        <span class="page-count-label" id="page-count-label"></span>
-      </div>
-      <div class="row-wrap">
-        <button class="btn-outline" onclick="setRange(1, totalPages)">All</button>
-        <button class="btn-outline" onclick="setRange(1, Math.min(10, totalPages))">First 10</button>
-        <button class="btn-outline" onclick="setRange(1, Math.min(25, totalPages))">First 25</button>
-        <button class="btn-outline" onclick="setRange(1, Math.min(50, totalPages))">First 50</button>
-      </div>
-    </div>
+        <!-- Error Section -->
+        <div id="error-box" class="hidden p-4 rounded-lg bg-error-container/20 border border-error/20 text-error text-sm">
+        </div>
 
-    <!-- Download -->
-    <div class="hidden" id="download-section" style="display:flex;flex-direction:column;gap:0.5rem">
-      <button class="btn-success" id="download-btn" onclick="startDownload()">Download PDF</button>
-      <div class="progress-bar hidden" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-      <div class="status-text hidden" id="status-text"></div>
-      <button class="btn-link" onclick="resetAll()">Download a different book</button>
-    </div>
+        <!-- Book Info Section -->
+        <div id="info-section" class="hidden material-card overflow-hidden flex flex-col sm:flex-row bg-surface-container-high">
+            <div class="w-full sm:w-[180px] aspect-[3/4] sm:aspect-auto bg-surface-container-highest relative">
+                <div class="w-full h-full flex items-center justify-center text-on-surface-variant">
+                    <span class="material-symbols-outlined text-6xl" data-icon="book">book</span>
+                </div>
+            </div>
+            <div class="flex-1 p-6 flex flex-col justify-between">
+                <div class="space-y-2">
+                    <span id="platform-badge" class="text-xs font-semibold uppercase tracking-wider text-tertiary bg-tertiary-container/30 px-3 py-1 rounded-full">AnyFlip</span>
+                    <h3 id="book-title" class="text-2xl font-normal text-on-surface leading-tight">Book Title</h3>
+                    <p class="text-on-surface-variant text-sm">Digital Publication Archive</p>
+                </div>
+                <div class="mt-6 flex items-center gap-8 border-t border-outline/10 pt-4">
+                    <div class="flex flex-col">
+                        <span class="text-[11px] text-on-surface-variant font-medium uppercase tracking-wider">Total Pages</span>
+                        <span id="total-pages" class="text-xl font-semibold text-primary">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    <footer>Only download books you have permission to download.</footer>
-  </div>
+        <!-- Range Selection Section -->
+        <div id="range-section" class="hidden material-card p-6 space-y-6">
+            <div class="flex justify-between items-center">
+                <div class="space-y-1">
+                    <h4 class="text-sm font-medium text-on-surface uppercase tracking-wider">Range Settings</h4>
+                    <p class="text-sm text-on-surface-variant">Selected: <span id="selected-pages-count" class="text-primary font-semibold">0 pages</span></p>
+                </div>
+                <div class="flex gap-3">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] text-on-surface-variant font-medium uppercase px-1">From</label>
+                        <input id="from-page" class="w-16 bg-surface-container-highest border border-outline/20 rounded-lg p-2 text-center text-sm focus:border-primary outline-none" type="number" value="1"/>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] text-on-surface-variant font-medium uppercase px-1">To</label>
+                        <input id="to-page" class="w-16 bg-surface-container-highest border border-outline/20 rounded-lg p-2 text-center text-sm focus:border-primary outline-none" type="number" value="1"/>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-4 gap-2">
+                <button onclick="setRange(1, totalPages)" class="bg-primary-container text-on-primary-container py-2 rounded-lg text-sm font-medium transition-colors">All</button>
+                <button onclick="setRange(1, Math.min(10, totalPages))" class="bg-surface-container-highest text-on-surface-variant border border-outline/10 py-2 rounded-lg text-sm font-medium hover:bg-surface-container-highest/80 transition-colors">1-10</button>
+                <button onclick="setRange(1, Math.min(25, totalPages))" class="bg-surface-container-highest text-on-surface-variant border border-outline/10 py-2 rounded-lg text-sm font-medium hover:bg-surface-container-highest/80 transition-colors">1-25</button>
+                <button onclick="setRange(1, Math.min(50, totalPages))" class="bg-surface-container-highest text-on-surface-variant border border-outline/10 py-2 rounded-lg text-sm font-medium hover:bg-surface-container-highest/80 transition-colors">1-50</button>
+            </div>
+        </div>
 
-<script>
-// ── State ──
-let bookData = null;
-let totalPages = 0;
-let pageUrls = [];
+        <!-- Action & Progress Section -->
+        <div id="download-section" class="hidden material-card p-6 space-y-6">
+            <button id="download-btn" onclick="startDownload()" class="w-full bg-primary-container text-on-primary-container font-semibold py-5 rounded-2xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                <span class="material-symbols-outlined text-2xl" data-icon="picture_as_pdf">picture_as_pdf</span>
+                DOWNLOAD PDF
+            </button>
+            <div id="progress-container" class="hidden space-y-3">
+                <div class="flex justify-between items-center text-sm">
+                    <span id="progress-status-text" class="text-on-surface-variant flex items-center gap-2 font-medium">
+                        <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                        Downloading fragments...
+                    </span>
+                    <span id="progress-ratio" class="text-primary font-semibold">0 / 0</span>
+                </div>
+                <div class="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
+                    <div id="progress-fill" class="h-full bg-primary transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <p id="status-text" class="text-xs text-on-surface-variant italic text-center"></p>
+            </div>
+            <button onclick="resetAll()" class="w-full text-sm text-on-surface-variant hover:text-primary transition-colors text-center">
+                Download a different book
+            </button>
+        </div>
 
-// ── DOM helpers ──
-const $ = id => document.getElementById(id);
-function show(id) { $(id).classList.remove('hidden'); }
-function hide(id) { $(id).classList.add('hidden'); }
+        <!-- Footer -->
+        <footer class="flex flex-col items-center gap-3 px-8 text-center w-full py-8">
+            <p class="text-sm text-on-surface-variant">© 2024 The Digital Curator. For personal archival use only.</p>
+            <div class="flex gap-6">
+                <a class="text-sm text-on-surface-variant hover:text-primary transition-colors underline underline-offset-4" href="#">Terms of Service</a>
+                <a class="text-sm text-on-surface-variant hover:text-primary transition-colors underline underline-offset-4" href="#">Privacy Policy</a>
+            </div>
+        </footer>
+    </main>
 
-function showError(msg) {
-  $('error-box').textContent = msg;
-  show('error-box');
-}
+    <script>
+        // ── State ──
+        let bookData = null;
+        let totalPages = 0;
+        let pageUrls = [];
 
-function updatePageCount() {
-  const from = +$('from-page').value;
-  const to = +$('to-page').value;
-  const n = Math.max(0, to - from + 1);
-  $('page-count-label').textContent = `(${n} page${n !== 1 ? 's' : ''})`;
-  $('download-btn').textContent = `Download PDF (${n} page${n !== 1 ? 's' : ''})`;
-}
+        // ── DOM helpers ──
+        const $ = id => document.getElementById(id);
+        function show(id) { $(id).classList.remove('hidden'); }
+        function hide(id) { $(id).classList.add('hidden'); }
 
-function setRange(from, to) {
-  $('from-page').value = from;
-  $('to-page').value = to;
-  updatePageCount();
-}
+        function showError(msg) {
+            $('error-box').textContent = msg;
+            show('error-box');
+        }
 
-function resetAll() {
-  bookData = null; totalPages = 0; pageUrls = [];
-  hide('info-section'); hide('range-section'); hide('download-section'); hide('error-box');
-  $('download-btn').disabled = false;
-  $('download-btn').textContent = 'Download PDF';
-  hide('progress-bar'); hide('status-text');
-}
+        function updatePageCount() {
+            const from = +$('from-page').value;
+            const to = +$('to-page').value;
+            const n = Math.max(0, to - from + 1);
+            $('selected-pages-count').textContent = `${n} page${n !== 1 ? 's' : ''}`;
+            $('download-btn').innerHTML = `<span class="material-symbols-outlined text-2xl">picture_as_pdf</span> DOWNLOAD PDF (${n} pages)`;
+        }
 
-$('from-page').addEventListener('input', updatePageCount);
-$('to-page').addEventListener('input', updatePageCount);
-$('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') fetchBook(); });
+        function setRange(from, to) {
+            $('from-page').value = from;
+            $('to-page').value = to;
+            updatePageCount();
+        }
 
-// ── URL Parser ──
-function parseFlipbookUrl(rawUrl) {
-  let url;
-  try { url = new URL(rawUrl.trim()); } catch { throw new Error('Invalid URL.'); }
+        function resetAll() {
+            bookData = null; totalPages = 0; pageUrls = [];
+            hide('info-section'); hide('range-section'); hide('download-section'); hide('error-box');
+            $('download-btn').disabled = false;
+            hide('progress-container');
+            $('progress-fill').style.width = '0%';
+        }
 
-  const host = url.hostname.toLowerCase();
-  const parts = url.pathname.split('/').filter(Boolean);
+        $('from-page').addEventListener('input', updatePageCount);
+        $('to-page').addEventListener('input', updatePageCount);
+        $('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') fetchBook(); });
 
-  if (host.includes('anyflip.com')) {
-    if (parts.length < 2) throw new Error('Invalid AnyFlip URL.');
-    return { platform: 'anyflip', id1: parts[0], id2: parts[1] };
-  }
+        // ── URL Parser ──
+        function parseFlipbookUrl(rawUrl) {
+            let url;
+            try { url = new URL(rawUrl.trim()); } catch { throw new Error('Invalid URL.'); }
+            const host = url.hostname.toLowerCase();
+            const parts = url.pathname.split('/').filter(Boolean);
+            if (host.includes('anyflip.com')) {
+                if (parts.length < 2) throw new Error('Invalid AnyFlip URL.');
+                return { platform: 'anyflip', id1: parts[0], id2: parts[1] };
+            }
+            if (host.includes('fliphtml5.com')) {
+                const noise = ['explore','templates','homepage','book','pub','user','view','show'];
+                const sig = parts.filter(p => !noise.includes(p.toLowerCase()));
+                if (sig.length < 2) throw new Error('Invalid FlipHTML5 URL.');
+                return { platform: 'fliphtml5', id1: sig[0], id2: sig[1] };
+            }
+            throw new Error('Only AnyFlip and FlipHTML5 URLs are supported.');
+        }
 
-  if (host.includes('fliphtml5.com')) {
-    const noise = ['explore','templates','homepage','book','pub','user','view','show'];
-    const sig = parts.filter(p => !noise.includes(p.toLowerCase()));
-    if (sig.length < 2) throw new Error('Invalid FlipHTML5 URL.');
-    return { platform: 'fliphtml5', id1: sig[0], id2: sig[1] };
-  }
+        function getConfigUrl(p) {
+            const domain = p.platform === 'anyflip' ? 'online.anyflip.com' : 'online.fliphtml5.com';
+            const path = p.platform === 'anyflip' ? 'mobile/javascript/config.js' : 'javascript/config.js';
+            return `https://${domain}/${p.id1}/${p.id2}/${path}`;
+        }
 
-  throw new Error('Only AnyFlip and FlipHTML5 URLs are supported.');
-}
+        function buildPageUrl(p, num, filename) {
+            const domain = p.platform === 'anyflip' ? 'online.anyflip.com' : 'online.fliphtml5.com';
+            const base = `https://${domain}/${p.id1}/${p.id2}`;
+            if (filename) {
+                let clean = filename.replace(/\\\//g, '/').replace(/\\/g, '/').replace(/\.\.\//g, '').replace(/\.\.\\/g, '/').replace(/^\/+/, '');
+                return clean.includes('files/large/') || clean.includes('files/mobile/') ? `${base}/${clean}` : `${base}/files/large/${clean}`;
+            }
+            const ext = p.platform === 'fliphtml5' ? 'webp' : 'jpg';
+            return `${base}/files/large/${num}.${ext}`;
+        }
 
-function getConfigUrl(p) {
-  const domain = p.platform === 'anyflip' ? 'online.anyflip.com' : 'online.fliphtml5.com';
-  const path = p.platform === 'anyflip' ? 'mobile/javascript/config.js' : 'javascript/config.js';
-  return `https://${domain}/${p.id1}/${p.id2}/${path}`;
-}
+        // ── Config Parser ──
+        function extractBookInfo(jsText, parsed) {
+            const start = jsText.indexOf('{');
+            const end = jsText.lastIndexOf('}');
+            if (start === -1 || end <= start) throw new Error('Invalid config.js contents.');
+            const config = JSON.parse(jsText.slice(start, end + 1));
+            const meta = config.meta || {};
+            const title = (meta.title || config.title || config.bookConfig?.bookTitle || 'Untitled')
+                .replace(/[<>:"/\\|?*]/g, '').trim() || 'Untitled';
+            const pageCount = config.totalPageCount || config.pageCount || meta.pageCount || meta.totalPageCount ||
+                config.bookConfig?.totalPageCount || config.bookConfig?.pageCount ||
+                (Array.isArray(config.fliphtml5_pages) ? config.fliphtml5_pages.length : 0);
+            if (pageCount <= 0) throw new Error('Could not determine page count.');
+            let flipPages = Array.isArray(config.fliphtml5_pages) ? config.fliphtml5_pages : [];
+            if (typeof config.fliphtml5_pages === 'string' && config.fliphtml5_pages.startsWith('v')) flipPages = [];
+            const urls = [];
+            for (let i = 0; i < pageCount; i++) {
+                urls.push(buildPageUrl(parsed, i + 1, flipPages[i]?.n?.[0]));
+            }
+            return { title, totalPages: pageCount, pageUrls: urls, platform: parsed.platform };
+        }
 
-function buildPageUrl(p, num, filename) {
-  const domain = p.platform === 'anyflip' ? 'online.anyflip.com' : 'online.fliphtml5.com';
-  const base = `https://${domain}/${p.id1}/${p.id2}`;
-  if (filename) {
-    let clean = filename.replace(/\\\//g, '/').replace(/\\/g, '/').replace(/\.\.\//g, '').replace(/\.\.\\/g, '/').replace(/^\/+/, '');
-    return clean.includes('files/large/') || clean.includes('files/mobile/') ? `${base}/${clean}` : `${base}/files/large/${clean}`;
-  }
-  const ext = p.platform === 'fliphtml5' ? 'webp' : 'jpg';
-  return `${base}/files/large/${num}.${ext}`;
-}
+        // ── Fetch Book Info ──
+        async function fetchBook() {
+            hide('error-box'); hide('info-section'); hide('range-section'); hide('download-section');
+            const rawUrl = $('url-input').value.trim();
+            if (!rawUrl) { showError('Please enter a URL.'); return; }
+            const btn = $('fetch-btn');
+            btn.disabled = true;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<div class="spinner"></div> Fetching Archive...';
+            try {
+                const parsed = parseFlipbookUrl(rawUrl);
+                const primaryUrl = getConfigUrl(parsed);
+                const fallbackUrl = parsed.platform === 'fliphtml5'
+                  ? primaryUrl.replace('/javascript/', '/mobile/javascript/')
+                  : primaryUrl.replace('/mobile/', '/');
+                let jsText = '';
+                for (const configUrl of [primaryUrl, fallbackUrl]) {
+                  try {
+                    const resp = await fetch(configUrl);
+                    if (resp.ok) { jsText = await resp.text(); break; }
+                  } catch {}
+                }
+                if (!jsText) throw new Error('Failed to fetch config.js. The book may be private or URL is incorrect.');
+                bookData = extractBookInfo(jsText, parsed);
+                totalPages = bookData.totalPages;
+                pageUrls = bookData.pageUrls;
+                $('book-title').textContent = bookData.title;
+                $('total-pages').textContent = totalPages;
+                $('platform-badge').textContent = bookData.platform === 'anyflip' ? 'AnyFlip' : 'FlipHTML5';
+                $('from-page').max = totalPages;
+                $('to-page').max = totalPages;
+                $('from-page').value = 1;
+                $('to-page').value = totalPages;
+                updatePageCount();
+                show('info-section'); show('range-section'); show('download-section');
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+            }
+        }
 
-// ── Config Parser ──
-function extractBookInfo(jsText, parsed) {
-  const start = jsText.indexOf('{');
-  const end = jsText.lastIndexOf('}');
-  if (start === -1 || end <= start) throw new Error('Invalid config.js');
-  const config = JSON.parse(jsText.slice(start, end + 1));
+        // ── Image Conversion & Downloading ──
+        async function fetchImageAsJpg(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    canvas.toBlob(blob => {
+                        if (!blob) { reject(new Error('Canvas conversion failed')); return; }
+                        blob.arrayBuffer().then(resolve).catch(reject);
+                    }, 'image/jpeg', 0.92);
+                };
+                img.onerror = () => reject(new Error('Image failed to load.'));
+                img.src = url;
+            });
+        }
 
-  const meta = config.meta || {};
-  const title = (meta.title || config.title || config.bookConfig?.bookTitle || 'Untitled')
-    .replace(/[<>:"/\\|?*]/g, '').trim() || 'Untitled';
+        async function fetchWithRetry(url, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try { return await fetchImageAsJpg(url); }
+                catch { if (i === retries - 1) return null; await new Promise(r => setTimeout(r, 500 * (i + 1))); }
+            }
+            return null;
+        }
 
-  const pageCount =
-    config.totalPageCount || config.pageCount ||
-    meta.pageCount || meta.totalPageCount ||
-    config.bookConfig?.totalPageCount || config.bookConfig?.pageCount ||
-    (Array.isArray(config.fliphtml5_pages) ? config.fliphtml5_pages.length : 0);
-
-  if (pageCount <= 0) throw new Error('Could not determine page count.');
-
-  let flipPages = Array.isArray(config.fliphtml5_pages) ? config.fliphtml5_pages : [];
-  if (typeof config.fliphtml5_pages === 'string' && config.fliphtml5_pages.startsWith('v')) {
-    flipPages = [];
-  }
-
-  const urls = [];
-  for (let i = 0; i < pageCount; i++) {
-    urls.push(buildPageUrl(parsed, i + 1, flipPages[i]?.n?.[0]));
-  }
-
-  return { title, totalPages: pageCount, pageUrls: urls, platform: parsed.platform };
-}
-
-// ── Fetch Book Info ──
-async function fetchBook() {
-  hide('error-box'); hide('info-section'); hide('range-section'); hide('download-section');
-  const rawUrl = $('url-input').value.trim();
-  if (!rawUrl) { showError('Please enter a URL.'); return; }
-
-  const btn = $('fetch-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Fetching…';
-
-  try {
-    const parsed = parseFlipbookUrl(rawUrl);
-    const primaryUrl = getConfigUrl(parsed);
-    const fallbackUrl = parsed.platform === 'fliphtml5'
-      ? primaryUrl.replace('/javascript/', '/mobile/javascript/')
-      : primaryUrl.replace('/mobile/', '/');
-
-    let jsText = '';
-    for (const configUrl of [primaryUrl, fallbackUrl]) {
-      try {
-        const resp = await fetch(configUrl);
-        if (resp.ok) { jsText = await resp.text(); break; }
-      } catch {}
-    }
-
-    if (!jsText) throw new Error('Failed to fetch config.js. The book may be private or the URL may be incorrect.');
-
-    bookData = extractBookInfo(jsText, parsed);
-    totalPages = bookData.totalPages;
-    pageUrls = bookData.pageUrls;
-
-    // Show UI
-    $('book-title').textContent = bookData.title;
-    $('book-pages').textContent = `${totalPages} page${totalPages !== 1 ? 's' : ''}`;
-    const badge = $('platform-badge');
-    badge.textContent = bookData.platform === 'anyflip' ? 'AnyFlip' : 'FlipHTML5';
-    badge.className = 'badge ' + (bookData.platform === 'anyflip' ? 'badge-orange' : 'badge-blue');
-
-    $('from-page').max = totalPages;
-    $('to-page').max = totalPages;
-    $('from-page').value = 1;
-    $('to-page').value = totalPages;
-    updatePageCount();
-
-    show('info-section'); show('range-section'); show('download-section');
-  } catch (err) {
-    showError(err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Fetch';
-  }
-}
-
-// ── Image → ArrayBuffer (jpg) via canvas ──
-async function fetchImageAsJpg(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      canvas.toBlob(blob => {
-        if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
-        blob.arrayBuffer().then(resolve).catch(reject);
-      }, 'image/jpeg', 0.92);
-    };
-    img.onerror = () => reject(new Error('Image load failed: ' + url));
-    img.src = url;
-  });
-}
-
-async function fetchWithRetry(url, retries = 3) {
-  for (let i = 0; i < retries; i++) {
-    try { return await fetchImageAsJpg(url); }
-    catch (err) {
-      if (i === retries - 1) { console.error('Failed:', url, err); return null; }
-      await new Promise(r => setTimeout(r, 500 * (i + 1)));
-    }
-  }
-  return null;
-}
-
-// ── Download as PDF ──
-async function startDownload() {
-  const from = +$('from-page').value;
-  const to = +$('to-page').value;
-  if (from > to || from < 1 || to > totalPages) { showError('Invalid page range.'); return; }
-
-  const urls = pageUrls.slice(from - 1, to);
-  const total = urls.length;
-
-  $('download-btn').disabled = true;
-  show('progress-bar'); show('status-text');
-  $('status-text').textContent = `Downloading pages… 0/${total}`;
-  $('progress-fill').style.width = '0%';
-
-  const CONCURRENCY = 4;
-  const buffers = new Array(total).fill(null);
-  let completed = 0;
-
-  for (let i = 0; i < total; i += CONCURRENCY) {
-    const batch = urls.slice(i, i + CONCURRENCY);
-    const results = await Promise.all(batch.map((url, j) =>
-      fetchWithRetry(url).then(buf => {
-        buffers[i + j] = buf;
-        completed++;
-        $('progress-fill').style.width = `${Math.round(completed / total * 100)}%`;
-        $('status-text').textContent = `Downloading pages… ${completed}/${total}`;
-      })
-    ));
-  }
-
-  const valid = buffers.filter(b => b !== null);
-  if (valid.length === 0) {
-    showError('All pages failed to download. The book may block direct image access.');
-    $('download-btn').disabled = false;
-    hide('progress-bar'); hide('status-text');
-    return;
-  }
-
-  $('status-text').textContent = 'Generating PDF…';
-
-  try {
-    const { PDFDocument } = PDFLib;
-    const pdf = await PDFDocument.create();
-    pdf.setTitle(bookData.title);
-    pdf.setCreator('FlipBook Downloader');
-
-    for (const buf of valid) {
-      const bytes = new Uint8Array(buf);
-      const image = (bytes[0] === 0x89 && bytes[1] === 0x50)
-        ? await pdf.embedPng(buf)
-        : await pdf.embedJpg(buf);
-      const page = pdf.addPage([image.width, image.height]);
-      page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
-    }
-
-    const pdfBytes = await pdf.save();
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = bookData.title.replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').slice(0, 80) + '.pdf';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-
-    $('status-text').textContent = `✓ Done! Downloaded ${valid.length} pages.`;
-    $('download-btn').textContent = 'Download Complete!';
-    setTimeout(() => {
-      $('download-btn').disabled = false;
-      $('download-btn').textContent = `Download PDF (${to - from + 1} pages)`;
-      hide('progress-bar'); hide('status-text');
-    }, 3000);
-  } catch (err) {
-    showError('PDF generation failed: ' + err.message);
-    $('download-btn').disabled = false;
-    hide('progress-bar'); hide('status-text');
-  }
-}
-</script>
+        async function startDownload() {
+            const from = +$('from-page').value;
+            const to = +$('to-page').value;
+            if (from > to || from < 1 || to > totalPages) { showError('Invalid range.'); return; }
+            const urls = pageUrls.slice(from - 1, to);
+            const total = urls.length;
+            $('download-btn').disabled = true;
+            show('progress-container');
+            $('progress-status-text').innerHTML = '<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span> Downloading fragments...';
+            $('progress-ratio').textContent = `0 / ${total}`;
+            $('progress-fill').style.width = '0%';
+            const CONCURRENCY = 4;
+            const buffers = new Array(total).fill(null);
+            let completed = 0;
+            for (let i = 0; i < total; i += CONCURRENCY) {
+                const batch = urls.slice(i, i + CONCURRENCY);
+                await Promise.all(batch.map((url, j) =>
+                    fetchWithRetry(url).then(buf => {
+                        buffers[i + j] = buf;
+                        completed++;
+                        $('progress-fill').style.width = `${Math.round(completed / total * 100)}%`;
+                        $('progress-ratio').textContent = `${completed} / ${total}`;
+                    })
+                ));
+            }
+            const valid = buffers.filter(b => b !== null);
+            if (valid.length === 0) {
+                showError('Download failed. Target may block direct access.');
+                $('download-btn').disabled = false;
+                return;
+            }
+            $('progress-status-text').textContent = 'Generating PDF Archive...';
+            try {
+                const pdf = await PDFLib.PDFDocument.create();
+                pdf.setTitle(bookData.title);
+                for (const buf of valid) {
+                    const bytes = new Uint8Array(buf);
+                    const image = (bytes[0] === 0x89 && bytes[1] === 0x50) ? await pdf.embedPng(buf) : await pdf.embedJpg(buf);
+                    const page = pdf.addPage([image.width, image.height]);
+                    page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
+                }
+                const pdfBytes = await pdf.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = bookData.title.replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').slice(0, 80) + '.pdf';
+                a.click();
+                URL.revokeObjectURL(a.href);
+                $('progress-status-text').textContent = '✓ Archive ready and downloaded.';
+                setTimeout(() => { $('download-btn').disabled = false; hide('progress-container'); }, 5000);
+            } catch (err) {
+                showError('PDF build failed: ' + err.message);
+                $('download-btn').disabled = false;
+            }
+        }
+    </script>
 </body>
 </html>
