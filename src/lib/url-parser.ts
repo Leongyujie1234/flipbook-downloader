@@ -27,10 +27,14 @@ export function parseFlipbookUrl(rawUrl: string): ParsedUrl {
 
   // FlipHTML5: fliphtml5.com/{id1}/{id2} or online.fliphtml5.com/{id1}/{id2}
   if (hostname.includes("fliphtml5.com")) {
-    if (pathParts.length < 2) {
+    // Filter out common noise parts of the URL that are not IDs
+    const noise = ["explore", "templates", "homepage", "book", "pub", "user", "view", "show"];
+    const significantParts = pathParts.filter(p => !noise.includes(p.toLowerCase()));
+
+    if (significantParts.length < 2) {
       throw new Error("Invalid FlipHTML5 URL. Expected format: https://fliphtml5.com/{id1}/{id2}");
     }
-    return { platform: "fliphtml5", id1: pathParts[0], id2: pathParts[1] };
+    return { platform: "fliphtml5", id1: significantParts[0], id2: significantParts[1] };
   }
 
   throw new Error("Unsupported URL. Only AnyFlip and FlipHTML5 URLs are supported.");
@@ -58,6 +62,7 @@ export function buildPageUrl(parsed: ParsedUrl, pageNum: number, filename?: stri
     return `${basePath}/files/large/${clean}`;
   }
 
-  // Fallback: numbered jpg (AnyFlip style)
-  return `${basePath}/files/large/${pageNum}.jpg`;
+  // Fallback: numbered image
+  const ext = parsed.platform === "fliphtml5" ? "webp" : "jpg";
+  return `${basePath}/files/large/${pageNum}.${ext}`;
 }

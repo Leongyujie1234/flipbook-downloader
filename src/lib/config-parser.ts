@@ -42,6 +42,8 @@ export function extractBookInfo(configJs: string, parsed: ParsedUrl): BookInfo {
   const pageCount =
     (config.totalPageCount as number) ||
     (config.pageCount as number) ||
+    (meta?.pageCount as number) ||
+    (meta?.totalPageCount as number) ||
     ((config.bookConfig as Record<string, unknown>)?.totalPageCount as number) ||
     ((config.bookConfig as Record<string, unknown>)?.pageCount as number) ||
     ((config.fliphtml5_pages as unknown[])?.length) ||
@@ -52,9 +54,16 @@ export function extractBookInfo(configJs: string, parsed: ParsedUrl): BookInfo {
   }
 
   // Extract page filenames
-  const flipPages = (config.fliphtml5_pages as Array<{ n?: string[] }>) || [];
-  const pageUrls: string[] = [];
+  let flipPages = (config.fliphtml5_pages as Array<{ n?: string[] }>) || [];
+  
+  // If fliphtml5_pages is an encoded string (starts with v0100), we can't parse it yet.
+  // We'll fallback to numeric naming (1.webp, 2.webp, etc.)
+  const isEncoded = typeof config.fliphtml5_pages === 'string' && config.fliphtml5_pages.startsWith('v');
+  if (isEncoded) {
+    flipPages = []; // Force fallback to numeric naming in the loop below
+  }
 
+  const pageUrls: string[] = [];
   for (let i = 0; i < pageCount; i++) {
     const filename = flipPages[i]?.n?.[0] || undefined;
     pageUrls.push(buildPageUrl(parsed, i + 1, filename));

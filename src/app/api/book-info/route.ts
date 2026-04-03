@@ -12,24 +12,44 @@ export async function POST(req: NextRequest) {
     }
 
     const parsed = parseFlipbookUrl(url);
-    const configUrl = getConfigUrl(parsed);
+    const primaryConfigUrl = getConfigUrl(parsed);
+    
+    // Fallback urls: Some FlipHTML5 books use the AnyFlip path structure
+    const fallbackUrls = parsed.platform === "fliphtml5" 
+      ? [primaryConfigUrl.replace("/javascript/", "/mobile/javascript/")] 
+      : [primaryConfigUrl.replace("/mobile/", "/")];
 
-    const resp = await fetch(configUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-      },
-      signal: AbortSignal.timeout(15000),
-    });
+    const allUrls = [primaryConfigUrl, ...fallbackUrls];
+    let lastError = "";
+    let jsText = "";
 
-    if (!resp.ok) {
+    for (const configUrl of allUrls) {
+      try {
+        const resp = await fetch(configUrl, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          },
+          signal: AbortSignal.timeout(10000),
+        });
+
+        if (resp.ok) {
+          jsText = await resp.text();
+          break;
+        }
+        lastError = `${resp.status} ${resp.statusText} at ${configUrl}`;
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : "Unknown error";
+      }
+    }
+
+    if (!jsText) {
       return NextResponse.json(
-        { error: `Failed to fetch config.js: ${resp.status} ${resp.statusText}` },
+        { error: `Failed to fetch config.js (tried ${allUrls.length} locations). Last error: ${lastError}` },
         { status: 502 }
       );
     }
 
-    const jsText = await resp.text();
     const bookInfo: BookInfo = extractBookInfo(jsText, parsed);
 
     return NextResponse.json(bookInfo);
